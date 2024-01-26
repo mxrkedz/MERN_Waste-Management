@@ -7,12 +7,9 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
-
-
 # Dependency directories
 node_modules/
 jspm_packages/
-
 
 # dotenv environment variable files
 .env

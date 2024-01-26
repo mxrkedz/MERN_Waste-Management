@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const cloudinary = require("cloudinary");
 const bcrypt = require("bcryptjs");
 
-//Missing Avatar
+//Working; Doesn't store avatar
 exports.registerUser = async (req, res, next) => {
     // const result = await cloudinary.v2.uploader.upload(
     //   req.body.avatar,
@@ -66,7 +66,7 @@ exports.logout = async (req, res, next) => {
     message: "Logged out",
   });
 };
-
+//Working
 exports.forgotPassword = async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
@@ -106,7 +106,7 @@ exports.forgotPassword = async (req, res, next) => {
     // return next(new ErrorHandler(error.message, 500))
   }
 };
-
+//Working
 exports.resetPassword = async (req, res, next) => {
   // Hash URL token
   const resetPasswordToken = crypto
@@ -137,65 +137,7 @@ exports.resetPassword = async (req, res, next) => {
   await user.save();
   sendToken(user, 200, res);
 };
-
-exports.getUserProfile = async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-
-  res.status(200).json({
-    success: true,
-    user,
-  });
-};
-
-exports.updatePassword = async (req, res, next) => {
-  const user = await User.findById(req.user.id).select("password");
-  // Check previous user password
-  const isMatched = await user.comparePassword(req.body.oldPassword);
-  if (!isMatched) {
-    return res.status(400).json({ message: "Old password is incorrect" });
-  }
-  user.password = req.body.password;
-  await user.save();
-  sendToken(user, 200, res);
-};
-
-exports.updateProfile = async (req, res, next) => {
-  const newUserData = {
-    name: req.body.name,
-    email: req.body.email,
-  };
-
-  if (req.body.avatar !== "") {
-    const user = await User.findById(req.user.id);
-
-    const image_id = user.avatar.public_id;
-    const res = await cloudinary.v2.uploader.destroy(image_id);
-
-    const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
-      folder: "avatars",
-      width: 150,
-      crop: "scale",
-    });
-
-    newUserData.avatar = {
-      public_id: result.public_id,
-      url: result.secure_url,
-    };
-  }
-
-  const user = await User.findByIdAndUpdate(req.user.id, newUserData, {
-    new: true,
-    runValidators: true,
-  });
-  if (!user) {
-    return res.status(401).json({ message: "User Not Updated" });
-  }
-
-  res.status(200).json({
-    success: true,
-  });
-};
-
+//Working
 exports.allUsers = async (req, res, next) => {
   const users = await User.find();
   res.status(200).json({
@@ -203,7 +145,7 @@ exports.allUsers = async (req, res, next) => {
     users,
   });
 };
-
+//Working
 exports.getUserDetails = async (req, res, next) => {
   const user = await User.findById(req.params.id);
 
@@ -219,7 +161,7 @@ exports.getUserDetails = async (req, res, next) => {
         user
     })
 };
-
+//Working
 exports.updateUser = async (req, res, next) => {
     const newUserData = {
         name: req.body.name,
@@ -238,7 +180,7 @@ exports.updateUser = async (req, res, next) => {
         success: true
     })
 };
-
+//Working; Doesn't delete user avatar in cloudinary
 exports.deleteUser = async (req, res, next) => {
     const user = await User.findById(req.params.id);
 
@@ -248,12 +190,70 @@ exports.deleteUser = async (req, res, next) => {
     }
 
     // Remove avatar from cloudinary
-    const image_id = user.avatar.public_id;
-    await cloudinary.v2.uploader.destroy(image_id);
+        // const image_id = user.avatar.public_id;
+        // await cloudinary.v2.uploader.destroy(image_id);
     await User.findByIdAndRemove(req.params.id);
     return res.status(200).json({
         success: true,
     })
+};
+//Needs Frontend
+exports.getUserProfile = async (req, res, next) => {
+    const user = await User.findById(req.user.id);
+  
+    res.status(200).json({
+      success: true,
+      user,
+    });
+};
+//Needs Frontend
+exports.updatePassword = async (req, res, next) => {
+    const user = await User.findById(req.user.id).select("password");
+    // Check previous user password
+    const isMatched = await user.comparePassword(req.body.oldPassword);
+    if (!isMatched) {
+      return res.status(400).json({ message: "Old password is incorrect" });
+    }
+    user.password = req.body.password;
+    await user.save();
+    sendToken(user, 200, res);
+};
+//Needs Frontend
+exports.updateProfile = async (req, res, next) => {
+    const newUserData = {
+      name: req.body.name,
+      email: req.body.email,
+    };
+  
+    if (req.body.avatar !== "") {
+      const user = await User.findById(req.user.id);
+  
+      const image_id = user.avatar.public_id;
+      const res = await cloudinary.v2.uploader.destroy(image_id);
+  
+      const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
+        folder: "avatars",
+        width: 150,
+        crop: "scale",
+      });
+  
+      newUserData.avatar = {
+        public_id: result.public_id,
+        url: result.secure_url,
+      };
+    }
+  
+    const user = await User.findByIdAndUpdate(req.user.id, newUserData, {
+      new: true,
+      runValidators: true,
+    });
+    if (!user) {
+      return res.status(401).json({ message: "User Not Updated" });
+    }
+  
+    res.status(200).json({
+      success: true,
+    });
 };
 
 exports.checkEmail = async (req, res, next) => {
@@ -272,7 +272,7 @@ exports.checkEmail = async (req, res, next) => {
     }
 };
   
-  exports.google = async (req, res, next) => {
+exports.google = async (req, res, next) => {
     try {
       const { email, name, avatar } = req.body;
   
@@ -330,7 +330,7 @@ exports.checkEmail = async (req, res, next) => {
     }
 };
   
-  exports.facebook = async (req, res, next) => {
+exports.facebook = async (req, res, next) => {
     try {
       const { email, name, avatar } = req.body;
   

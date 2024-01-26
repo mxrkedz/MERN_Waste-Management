@@ -1,131 +1,32 @@
-exports.checkEmail = async (req, res, next) => {
-    try {
-      const { email } = req.query;
-      const existingUser = await User.findOne({ email });
-  
-      res.status(200).json({
-        exists: !!existingUser,
-      });
-    } catch (error) {
-      console.error("Error checking email:", error);
-      res.status(500).json({
-        error: "Internal Server Error",
-      });
+const User = require('../models/user')
+const jwt = require('jsonwebtoken')
+
+exports.isAuthenticatedUser = async (req, res, next) => {
+    const authorizationHeader = req.header('Authorization');
+
+    if (!authorizationHeader) {
+        return res.status(401).json({ message: 'Login first to access this resource' });
     }
-  };
-  
-  exports.google = async (req, res, next) => {
+
     try {
-      const { email, name, avatar } = req.body;
-  
-      // Check if the user already exists
-      const existingUser = await User.findOne({ email });
-  
-      let avatarData;
-  
-      if (avatar) {
-        // Upload avatar to Cloudinary
-        await cloudinary.v2.uploader.upload(
-          avatar,
-          {
-            folder: "Waste/avatars",
-            width: 150,
-            crop: "scale",
-          },
-          (err, result) => {
-            if (err) {
-              console.error("Error uploading avatar to Cloudinary:", err);
-              throw err;
-            }
-            avatarData = {
-              public_id: result.public_id,
-              url: result.secure_url,
-            };
-          }
-        );
-      }
-  
-      if (existingUser) {
-        // User exists, log in the user
-        // You may generate a token or create a session here
-        sendToken(existingUser, 200, res);
-      } else {
-        // User doesn't exist, create a new user
-        const randomPassword = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
-  
-        const newUser = new User({
-          name,
-          email,
-          password: hashedPassword,
-          avatar: avatarData,
-        });
-  
-        await newUser.save();
-  
-        // Log in the new user
-        sendToken(newUser, 201, res);
-      }
+        const token = authorizationHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Decoded Token:', decoded);
+        req.user = await User.findById(decoded.id);
+        next();
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+        return res.status(401).json({ message: 'Invalid token' });
     }
-  };
-  
-  exports.facebook = async (req, res, next) => {
-    try {
-      const { email, name, avatar } = req.body;
-  
-      // Check if the user already exists
-      const existingUser = await User.findOne({ email });
-  
-      let avatarData;
-  
-      if (avatar) {
-        // Upload avatar to Cloudinary
-        await cloudinary.v2.uploader.upload(
-          avatar,
-          {
-            folder: "profiles",
-            width: 200,
-            crop: "scale",
-          },
-          (err, result) => {
-            if (err) {
-              console.error("Error uploading avatar to Cloudinary:", err);
-              throw err;
-            }
-            avatarData = {
-              public_id: result.public_id,
-              url: result.url,
-            };
-          }
-        );
-      }
-  
-      if (existingUser) {
-        // User exists, log in the user
-        // You may generate a token or create a session here
-        sendToken(existingUser, 200, res);
-      } else {
-        // User doesn't exist, create a new user
-        const randomPassword = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
-  
-        const newUser = new User({
-          name,
-          email,
-          password: hashedPassword,
-          avatar: avatarData,
-        });
-  
-        await newUser.save();
-  
-        // Log in the new user
-        sendToken(newUser, 201, res);
-      }
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+};
+
+exports.authorizeRoles = (...roles) => {
+	return (req, res, next) => {
+        console.log(roles, req.user, req.body);
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({message:`Role (${req.user.role}) is not allowed to acccess this resource`})
+            // return next(
+            //     new ErrorHandler(`Role (${req.user.role}) is not allowed to acccess this resource`, 403))
+        }
+        next()
     }
-  };
+}

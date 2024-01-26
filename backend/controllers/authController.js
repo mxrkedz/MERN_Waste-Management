@@ -1,6 +1,6 @@
 const User = require("../models/user");
 const sendToken = require("../utils/jwtToken");
-// const sendEmail = require("../utils/sendEmail");
+const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
 const cloudinary = require("cloudinary");
 const bcrypt = require("bcryptjs");

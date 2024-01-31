@@ -52,41 +52,111 @@ exports.newLocation = async (req, res, next) => {
     location,
   });
 };
-
-exports.getAdminLocations = async (req, res, next) => {
+//Working
+exports.getLocation = async (req, res, next) => {
+  const locations = await Location.find();
+  res.status(200).json({
+    success: true,
+    locations,
+  });
+};
+//Not Working
+exports.updateLocation = async (req, res, next) => {
   try {
-    const resPerPage = 1;
-    const postsCount = await Location.countDocuments();
-    const apiFeatures = new APIFeatures(Location.find(), req.query)
-      .search()
-      .filter()
-      .category()
-      .pagination(resPerPage);
+    let location = await Location.findById(req.params.id);
 
-    apiFeatures.pagination(resPerPage);
-    const locations = await apiFeatures.query;
-    const filteredPostsCount = locations.length;
-
-    if (!locations) {
+    if (!location) {
       return res.status(404).json({
         success: false,
-        message: "Posts not found",
+        message: "Location not found",
+      });
+    }
+
+    let images = [];
+
+    if (typeof req.body.images === "string") {
+      images.push(req.body.images);
+    } else {
+      images = req.body.images;
+    }
+
+    // Deleting images associated with the event
+    if (images !== undefined) {
+      for (let i = 0; i < location.images.length; i++) {
+        try {
+          const result = await cloudinary.v2.uploader.destroy(
+            location.images[i].public_id
+          );
+        } catch (error) {
+          console.log(`Error deleting image from Cloudinary: ${error}`);
+        }
+      }
+    }
+
+    let imagesLinks = [];
+    for (let i = 0; i < images.length; i++) {
+      try {
+        const result = await cloudinary.v2.uploader.upload(images[i], {
+          folder: "Waste/locations",
+        });
+
+        imagesLinks.push({
+          public_id: result.public_id,
+          url: result.secure_url,
+        });
+      } catch (error) {
+        console.log(`Error uploading image to Cloudinary: ${error}`);
+        // Handle the error as needed
+        // You can choose to send an error response or take other actions
+        return res.status(500).json({
+          success: false,
+          error: `Error uploading image to Cloudinary: ${error.message}`,
+        });
+      }
+    }
+    req.body.images = imagesLinks;
+    location = await Location.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+      useFindAndModify: false,
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not updated",
       });
     }
 
     res.status(200).json({
       success: true,
-      filteredPostsCount,
-      postsCount,
-      locations,
-      resPerPage,
+      location,
     });
   } catch (error) {
-    console.error(`Error fetching locations: ${error.message}`);
-    // You can choose to handle the error in a more detailed manner or send a specific error response.
-    res.status(500).json({
-      success: false,
-      error: `Error fetching locations: ${error.message}`,
-    });
+    console.error(`Error updating location: ${error.message}`);
+    res
+      .status(500)
+      .json({ error: `Error updating location: ${error.message}` });
   }
 };
+//Working
+exports.deleteLocation = async (req, res, next) => {
+    try {
+      const location = await Location.findByIdAndDelete(req.params.id);
+  
+      if (!location) {
+        return res.status(404).json({
+          success: false,
+          message: "Location not found",
+        });
+      }
+  
+      res.status(200).json({
+        success: true,
+        message: "Location deleted",
+      });
+    } catch (error) {
+      console.error(`Error deleting location: ${error.message}`);
+      res.status(500).json({ error: `Error deleting location: ${error.message}` });
+    }
+  };
